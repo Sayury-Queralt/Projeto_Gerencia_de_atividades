@@ -23,6 +23,14 @@ class TP:
         self.Afetacao = dados[8]
         self.Elementos = dados[-1]
 
+#Manipulação do formato dos elementos
+def ElementosFinal(ElementoPlanilha):
+    SortElement = ElementoPlanilha
+    SortElement.sort()
+    ElementosSplit = [elem.split("_") for elem in SortElement]
+    Elemento = [subelem[0]+ "-" +subelem[2] for subelem in ElementosSplit]
+    return(Elemento)
+
 #Manipulação e preparação 
 def Criar_TP(dados):
     Tipo_TP = dados[4]
@@ -31,9 +39,8 @@ def Criar_TP(dados):
     else:
         Tipo_TP = "Programada"
     dados[4]=Tipo_TP
-    SortElement = dados[-1]
-    SortElement.sort()
-    dados[-1] = SortElement
+    ElementoFinal = ElementosFinal(dados[-1])    
+    dados[-1] = ElementoFinal
     Classe_TP.append(TP(dados))
 
 #Adiciona a primeira linha em dados
