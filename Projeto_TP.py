@@ -1,8 +1,20 @@
 from openpyxl import load_workbook
 from collections import defaultdict
+from openpyxl import Workbook
+import re
+
+Afetacao_list = [["0","Não Afeta Elemento nem Serviços"],
+["1.1","Sem Afetação Elemento e Afetação Parcial Serviços"],
+["1.2","Afetação Parcial Elemento e sem Afetação Serviços"],
+["3","Afetação Parcial Elemento e Serviços"],
+["4.1","Afetação Total Elemento e sem Afetação Serviços"],
+["4.2","Sem Afetação Elemento e Afetação Total Serviços"],
+["5.1","Afetação Parcial Elemento e Total Serviços"],
+["5.2","Afetação Total Elemento e Parcial Serviços"],
+["6","Afetação Total Elemento e Serviços"]]
 
 # Carregar o arquivo Excel
-wb = load_workbook('Export_atividades.xlsx')
+wb = load_workbook('TP_Criação_Host_Sayury.xlsx')
 ws = wb.active
 
 #Deleta a ultima coluna (VTP PK)
@@ -21,26 +33,41 @@ class TP:
         self.Status = dados[5]
         self.Executor = dados[7]
         self.Afetacao = dados[8]
-        self.Elementos = dados[-1]
+        self.ElementosFull = dados [-2]
+        self.ElementosAgr = dados[-1]
 
 #Manipulação do formato dos elementos
 def ElementosFinal(ElementoPlanilha):
-    SortElement = ElementoPlanilha
-    SortElement.sort()
-    ElementosSplit = [elem.split("_") for elem in SortElement]
-    Elemento = [subelem[0]+ "-" +subelem[2] for subelem in ElementosSplit]
-    return(Elemento)
+    Elemento_Final = {}
+    ElementoInput = ElementoPlanilha
+    ElementosSplit = [[p[0],p[1],p[2][:3]] for p in (re.split(r"[_-]",elem) for elem in ElementoInput)]
+    SortNF = sorted(ElementosSplit, key=lambda x: x[-1])
+
+    for sub in SortNF:
+        K = sub[2]
+        V = sub[0]
+        if K not in Elemento_Final:
+            Elemento_Final[K] = []
+        Elemento_Final[K].append(V)
+    return Elemento_Final
 
 #Manipulação e preparação 
 def Criar_TP(dados):
     Tipo_TP = dados[4]
     if Tipo_TP == "S":
-        Tipo_TP = "Pré-aprovada"
+        Tipo_TP = "PA"
     else:
-        Tipo_TP = "Programada"
+        Tipo_TP = "PR"
     dados[4]=Tipo_TP
-    ElementoFinal = ElementosFinal(dados[-1])    
-    dados[-1] = ElementoFinal
+
+    Afetacao = dados[8]
+    for A in Afetacao_list:
+        if A[1] == Afetacao:
+            dados[8] = A[0]
+     
+    Elemento_entrada_def = dados[-1]
+    ElementoFinal = ElementosFinal(Elemento_entrada_def)    
+    dados.append(ElementoFinal)
     Classe_TP.append(TP(dados))
 
 #Adiciona a primeira linha em dados
@@ -86,7 +113,7 @@ def buscar_tp():
                 print(f"Status: {tp.Status}")
                 print(f"Executor: {tp.Executor}")
                 print(f"Afetação: {tp.Afetacao}")
-                print(f"Elementos: {tp.Elementos}")
+                print(f"Elementos: {tp.ElementosAgr}")
                 
                 encontrada = True
                 break
@@ -94,4 +121,19 @@ def buscar_tp():
         if not encontrada:
             print(f"\nATENÇÃO: TP {numero} não encontrada!\n")
 
-buscar_tp()
+#buscar_tp()
+
+wb = Workbook()
+ws = wb.active
+ws.title = "Teste"
+#cabecalho = list(vars(Classe_TP[0]).keys())
+cabecalho = ["TP","Descrição","Data validação","Validador","Executor","Tipo","Afetação","Status","Férias","Calendário","Aberto por","POP","Elemento"]
+ws.append(cabecalho)
+for tp in Classe_TP:
+    El = tp.ElementosAgr
+    K = El.keys()
+    V = El.values()
+    K_String = str(K)
+    V_String = str(V)
+    ws.append([tp.Origem,tp.Descricao,tp.Data,"",tp.Executor,tp.Tipo,tp.Afetacao,"Em análise","","Pendente","",K_String,V_String])
+wb.save("Saida.xlsx")
