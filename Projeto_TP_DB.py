@@ -1,15 +1,29 @@
+#Legado Sayury \(^^)/
+
 #Bibliotecas
 from openpyxl import load_workbook
 from collections import defaultdict
 from openpyxl import Workbook
 import re
 from datetime import datetime
+from dotenv import load_dotenv
+import os
 import mysql.connector
 
+#Carregar o arquivo com as informações do banco de dados
+load_dotenv("Infos_DB.env")
 
+#Conexão com o Banco de Dados no servidor (que está junto com o Grafana)
+Connection_DB = mysql.connector.connect(
+    host = os.getenv("host"),
+    port = os.getenv("port"),
+    user = os.getenv("user"),   
+    password = os.getenv("password"),
+    database = os.getenv("database")
+)
 
 # Carregar o arquivo Excel
-wb = load_workbook('TP_Previsao_Host_Sayury.xlsx')
+wb = load_workbook('TP_Criação_Host_Sayury.xlsx')
 ws = wb.active
 
 # Carregar o arquivo Excel
@@ -30,6 +44,7 @@ class TP:
         self.Data = dados[3]
         self.Tipo = dados[4]
         self.Status = dados[5]
+        self.StatusData = "Solicitado"
         self.Executor = dados[7]
         self.Afetacao = dados[8]
         self.Area = dados[9]
@@ -126,24 +141,23 @@ def Input_DB_GerenciaTP(Classe_TP_DB):
         V_String = V_String.replace("'","")
         F_String = str(El_Full)
 
-        sql = f"INSERT INTO ControleTPs (Sequencia, Descricao, Data, Categoria, Afetacao, Area, Elemento, POPs, Executor, Host) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-        Input = [tp.Origem,tp.Descricao,tp.Data,tp.Tipo,tp.Afetacao,tp.Area,K_String,V_String,tp.Executor,F_String]
+        sql = f"INSERT IGNORE INTO ControleTPs (Sequencia, Descricao, Data, Categoria, Afetacao, Area, Elemento, POPs, Executor, Host, StatusData, Status) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+        Input = [tp.Origem,tp.Descricao,tp.Data,tp.Tipo,tp.Afetacao,tp.Area,K_String,V_String,tp.Executor,F_String,tp.StatusData,"Em análise"]
         cursor.execute(sql,Input)
         Connection_DB.commit()
 
-    print(cursor.rowcount, "Registros inseridos")
+    print("Registros inseridos")
     cursor.close()
     Connection_DB.close()
 
 
 def Alterar_DB():
-    continuar = True
     while(True):
         cursor = Connection_DB.cursor()
         Sequencia = input("Numero da TP que deseja alterar: ")
         opcao = 9
-        while(opcao != "1" and opcao != "2" and opcao != "3"):
-            opcao = input("O que deseja alterar? (Opções: 1 - Data | 2 - Elemento | 3 - Status)\n")
+        while(opcao != "1" and opcao != "2" and opcao != "3" and opcao != "4"):
+            opcao = input("O que deseja alterar? (Opções: 1 - Data | 2 - Elemento | 3 - Status | 4 - StatusData)\n")
     
         if opcao == "1":
             nova_data = input("Digite a nova data e a hora no seguinte formato: dd/mm/yy HH:MM\n")
@@ -156,20 +170,51 @@ def Alterar_DB():
 
         elif opcao == "3":
             novo_Status = input("Digite o novo Status da TP: ")
-            sql = f"UPDATE ControleTPs SET Status = %s WHERE Sequencia = %s;)"
+            sql = f"UPDATE ControleTPs SET Status = %s WHERE Sequencia = %s;"
             Input = [novo_Status,Sequencia]
+
+        elif opcao == "4":
+            novo_StatusData = input("Digite o novo StatusData da TP: ")
+            sql = f"UPDATE ControleTPs SET StatusData = %s WHERE Sequencia = %s;"
+            Input = [novo_StatusData,Sequencia]
+        
+
+        cursor.execute(sql,Input)
+        Connection_DB.commit()
         
         C = "c"
         while(C != "s" and C != "n"):
-            continuar = input("Deseja continuar? (s/n)")
+            C = input("Deseja fazer outra alteração?\n(s/n): ")
 
         if C == "s":
-            continuar = True
+            C = True
         elif C == "n":
+            cursor.close()
+            Connection_DB.close()
             break
-       
-    cursor.execute(sql,Input)
-    Connection_DB.commit()
 
-#Alterar_DB()
-Input_DB_GerenciaTP(Classe_TP_DB)
+    cursor.close()
+    Connection_DB.close()
+    
+    
+
+
+while(True):
+    acao = input("Deseja incluir novas TPs ou fazer alterações nas existentes? I - Incluir | A - Alterar\n")
+    while(acao != "I" and acao != "2" and acao != "A"):
+        acao = input("Deseja incluir novas TPs ou fazer alterações nas existentes? I - Incluir | A - Alterar\n")
+    
+    if acao == "I":
+        Input_DB_GerenciaTP(Classe_TP_DB)
+    if acao == "A":
+        Alterar_DB()
+    
+    c = "c"
+    while(c != "s" and c != "n"):
+        c = input("Deseja continuar com mais alguma ação?\n(s/n): ")
+
+    if c == "s":
+        c = True
+    elif c == "n":
+        print("Programa encerrado")
+        break
