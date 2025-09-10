@@ -1,3 +1,5 @@
+#Legado Sayury \(^^)/
+
 #Bibliotecas
 from openpyxl import load_workbook
 from collections import defaultdict
